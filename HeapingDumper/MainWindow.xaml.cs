@@ -21,34 +21,27 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace HeapingDumper
-{
+namespace HeapingDumper {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
-    {
-        public MainWindow()
-        {
+    public partial class MainWindow : Window, INotifyPropertyChanged {
+        public MainWindow() {
             InitializeComponent();
             DataContext = this;
             Processes = new(Process.GetProcesses());
         }
 
-        private void Refresh(object sender, RoutedEventArgs e)
-        {
+        private void Refresh(object sender, RoutedEventArgs e) {
             Processes = new(Process.GetProcesses());
         }
 
         private ObservableCollection<Process> _processes;
 
-        public ObservableCollection<Process> Processes
-        {
+        public ObservableCollection<Process> Processes {
             get => _processes;
-            set
-            {
-                if (SetField(ref _processes, value))
-                {
+            set {
+                if (SetField(ref _processes, value)) {
                     OnPropertyChanged(nameof(ProcessCollectionView));
                     ProcessCollectionView.Filter += FilterProcesses;
                 }
@@ -57,10 +50,8 @@ namespace HeapingDumper
 
         public ICollectionView ProcessCollectionView => CollectionViewSource.GetDefaultView(Processes);
 
-        private bool FilterProcesses(object obj)
-        {
-            if (obj is Process process)
-            {
+        private bool FilterProcesses(object obj) {
+            if (obj is Process process) {
                 return process.ProcessName.ToLower().Contains(ProcessFilter);
             }
 
@@ -69,13 +60,10 @@ namespace HeapingDumper
 
         private string _processFilter = string.Empty;
 
-        public string ProcessFilter
-        {
+        public string ProcessFilter {
             get => _processFilter;
-            set
-            {
-                if (SetField(ref _processFilter, value))
-                {
+            set {
+                if (SetField(ref _processFilter, value)) {
                     ProcessCollectionView.Refresh();
                 }
             }
@@ -83,27 +71,17 @@ namespace HeapingDumper
 
         private Process _selectedProcess;
 
-        public Process? SelectedProcess
-        {
+        public Process? SelectedProcess {
             get => _selectedProcess;
-            set
-            {
-                if (SetField(ref _selectedProcess, value))
-                {
+            set {
+                if (SetField(ref _selectedProcess, value)) {
                     Modules = new();
-                    try
-                    {
+                    try {
                         ProcessModuleCollection modules = SelectedProcess.Modules;
-                        foreach (ProcessModule module in modules)
-                        {
+                        foreach (ProcessModule module in modules) {
                             Modules.Add(module);
                         }
-                    }
-                    catch
-                    {
-                    }
-                    finally
-                    {
+                    } catch { } finally {
                         OnPropertyChanged(nameof(ModuleCollectionView));
                         ModuleCollectionView.Filter += FilterModules;
                     }
@@ -111,8 +89,7 @@ namespace HeapingDumper
             }
         }
 
-        private void Dump(object sender, RoutedEventArgs e)
-        {
+        private void Dump(object sender, RoutedEventArgs e) {
             if (SelectedProcess is null || SelectedModule is null) return;
 
             // Kernel32.SuspendProcess(SelectedProcess.Id);
@@ -123,8 +100,7 @@ namespace HeapingDumper
             //Kernel32.ResumeProcess(SelectedProcess.Id);
         }
 
-        public void DumpSelectedModule()
-        {
+        public void DumpSelectedModule() {
             Process process = SelectedProcess;
 
             IntPtr processHandle = process.Handle;
@@ -133,50 +109,47 @@ namespace HeapingDumper
                 Kernel32.CreateToolhelp32Snapshot(Kernel32.SnapshotFlags.HeapList, (uint) process.Id);
             uint error = Kernel32.GetLastError();
 
-            Kernel32.HEAPLIST32 heaplist32 = new();
-            heaplist32.dwSize = (UIntPtr) Marshal.SizeOf(heaplist32);
+            Kernel32.HEAPLIST32 heaplist32 = new() {
+                dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPLIST32))
+            };
 
             bool success = Kernel32.Heap32ListFirst(snapshotHandle, ref heaplist32);
             error = Kernel32.GetLastError();
-            if (error == 0x12)
-                return;
+            if (error == 0x12) return;
 
-            if (!success)
-            {
+            if (!success) {
                 Debug.WriteLine(error);
                 throw new Exception($"{nameof(Kernel32.Heap32ListFirst)}  failed");
             }
 
             do
             {
-                Kernel32.HEAPENTRY32 he = new();
-                he.dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPENTRY32));
+                Kernel32.HEAPENTRY32 he = new() {
+                    dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPENTRY32))
+                };
 
                 success = Kernel32.Heap32First(ref he, (uint) process.Id, heaplist32.th32HeapID);
                 error = Kernel32.GetLastError();
 
-                if (error == 0x12)
-                    return;
+                if (error == 0x12) return;
 
-                if (!success)
-                {
+                if (!success) {
                     Debug.WriteLine(error);
                     throw new Exception($"{nameof(Kernel32.Heap32First)} failed");
                 }
 
                 //Write the heap to disk
-                do
+                do 
                 {
                     IntPtr bytesRead = IntPtr.Zero;
 
                     byte[] bytes = new byte[(int) he.dwBlockSize];
                     success = Kernel32.ReadProcessMemory(processHandle,
-                        (IntPtr) he.dwAddress.ToUInt64(), bytes, (IntPtr) he.dwBlockSize.ToUInt64(),
+                        (IntPtr) he.dwAddress.ToUInt64(), bytes, (IntPtr) bytes.Length,
                         ref bytesRead);
                     error = Kernel32.GetLastError();
-                    
-                    if (!success)
-                    {
+
+                    if (!success) {
                         Debug.WriteLine(error);
                         throw new Exception($"{nameof(Kernel32.ReadProcessMemory)} failed");
                     }
@@ -189,27 +162,23 @@ namespace HeapingDumper
 
                 heaplist32.dwSize = (UIntPtr) Marshal.SizeOf(heaplist32);
             } while (Kernel32.Heap32ListNext(snapshotHandle, ref heaplist32));
-
         }
 
         private const uint PageExecuteAny = Kernel32.PAGE_EXECUTE | Kernel32.PAGE_EXECUTE_READ |
                                             Kernel32.PAGE_EXECUTE_READWRITE | Kernel32.PAGE_EXECUTE_WRITECOPY;
 
-        private void DumpSelectedModuleFirst()
-        {
+        private void DumpSelectedModuleFirst() {
             Process process = SelectedProcess;
             List<Kernel32.MEMORY_BASIC_INFORMATION> memRegions = new List<Kernel32.MEMORY_BASIC_INFORMATION>();
             IntPtr memRegionAddr = process.MainModule.BaseAddress;
             IntPtr mainModuleEnd = process.MainModule.BaseAddress + process.MainModule.ModuleMemorySize;
             uint queryResult;
 
-            do
-            {
+            do {
                 var memInfo = new Kernel32.MEMORY_BASIC_INFORMATION();
                 queryResult = (uint) Kernel32.VirtualQueryEx(process.Handle, memRegionAddr, out memInfo,
                     (uint) Marshal.SizeOf(memInfo));
-                if (queryResult != 0)
-                {
+                if (queryResult != 0) {
                     if ((memInfo.State & Kernel32.MEM_COMMIT) != 0 && (memInfo.Protect & Kernel32.PAGE_GUARD) == 0 &&
                         (memInfo.Protect & PageExecuteAny) != 0)
                         memRegions.Add(memInfo);
@@ -222,8 +191,7 @@ namespace HeapingDumper
                 readMemory[(IntPtr) memRegion.BaseAddress] = Kernel32.ReadBytes(process.Handle,
                     (IntPtr) memRegion.BaseAddress, (uint) memRegion.RegionSize);
 
-            foreach (KeyValuePair<IntPtr, byte[]> pair in readMemory)
-            {
+            foreach (KeyValuePair<IntPtr, byte[]> pair in readMemory) {
                 File.WriteAllBytes($"{process.ProcessName}-{pair.Key:X}", pair.Value);
             }
 
@@ -234,18 +202,12 @@ namespace HeapingDumper
 
         private ObservableCollection<ProcessModule> _modules;
 
-        public ObservableCollection<ProcessModule> Modules
-        {
-            get => _modules;
-            set => SetField(ref _modules, value);
-        }
+        public ObservableCollection<ProcessModule> Modules { get => _modules; set => SetField(ref _modules, value); }
 
         public ICollectionView ModuleCollectionView => CollectionViewSource.GetDefaultView(Modules);
 
-        private bool FilterModules(object obj)
-        {
-            if (obj is ProcessModule module)
-            {
+        private bool FilterModules(object obj) {
+            if (obj is ProcessModule module) {
                 return module.ModuleName.ToLower().Contains(ModuleFilter);
             }
 
@@ -254,13 +216,10 @@ namespace HeapingDumper
 
         private string _moduleFilter = string.Empty;
 
-        public string ModuleFilter
-        {
+        public string ModuleFilter {
             get => _moduleFilter;
-            set
-            {
-                if (SetField(ref _moduleFilter, value))
-                {
+            set {
+                if (SetField(ref _moduleFilter, value)) {
                     ModuleCollectionView.Refresh();
                 }
             }
@@ -271,14 +230,12 @@ namespace HeapingDumper
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        {
+        protected void OnPropertyChanged([CallerMemberName] string? name = null) {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
 
-        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
+        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null) {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;
             field = value;
             OnPropertyChanged(propertyName ?? "");
