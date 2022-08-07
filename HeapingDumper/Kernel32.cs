@@ -87,6 +87,42 @@ public static class Kernel32
         internal ushort wProcessorLevel;
         internal ushort wProcessorRevision;
     }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct HEAPLIST32 
+    {
+        public UIntPtr dwSize;
+        public uint th32ProcessID;
+        public UIntPtr th32HeapID;
+        public uint dwFlags;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct HEAPENTRY32
+    {
+        public UIntPtr  dwSize;
+        public IntPtr hHandle;
+        public UIntPtr dwAddress;
+        public UIntPtr  dwBlockSize;
+        public uint dwFlags;
+        public uint dwLockCount;
+        public uint dwResvd;
+        public uint th32ProcessID;
+        public UIntPtr th32HeapID;
+    }
+    
+    [Flags]
+    public enum SnapshotFlags : uint
+    {
+        HeapList = 0x00000001,
+        Process = 0x00000002,
+        Thread = 0x00000004,
+        Module = 0x00000008,
+        Module32 = 0x00000010,
+        Inherit = 0x80000000,
+        All = 0x0000001F,
+        NoHeaps = 0x40000000
+    }
 
     [DllImport("kernel32.dll")]
     static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
@@ -96,12 +132,26 @@ public static class Kernel32
     static extern int ResumeThread(IntPtr hThread);
     [DllImport("kernel32", CharSet = CharSet.Auto,SetLastError = true)]
     static extern bool CloseHandle(IntPtr handle);
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError=true)]
     public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, IntPtr nSize, ref IntPtr lpNumberOfBytesRead);
     [DllImport("kernel32.dll")]
     public static extern void GetSystemInfo(out SYSTEM_INFO lpSystemInfo);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern int VirtualQueryEx(IntPtr hProcess, 
+        IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, uint dwLength);
     [DllImport("kernel32.dll")]
-    public static extern uint VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, IntPtr dwLength);
+    public static extern uint GetLastError();
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool Heap32ListFirst(IntPtr hSnapshot, ref HEAPLIST32 lphl);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool Heap32ListNext(IntPtr hSnapshot, ref HEAPLIST32 lphl);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool Heap32First(ref HEAPENTRY32 lphl, uint th32ProcessID, UIntPtr th32HeapID);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool Heap32Next(ref HEAPENTRY32 lphl);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern IntPtr CreateToolhelp32Snapshot(SnapshotFlags dwFlags, uint th32ProcessID);
+    
     public static byte[] ReadBytes(IntPtr handle, IntPtr address, uint length)
     {
         byte[] bytes = new byte[length];

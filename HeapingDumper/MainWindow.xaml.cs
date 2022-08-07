@@ -104,11 +104,9 @@ namespace HeapingDumper
                     }
                     finally
                     {
-                        
                         OnPropertyChanged(nameof(ModuleCollectionView));
                         ModuleCollectionView.Filter += FilterModules;
                     }
-
                 }
             }
         }
@@ -116,69 +114,87 @@ namespace HeapingDumper
         private void Dump(object sender, RoutedEventArgs e)
         {
             if (SelectedProcess is null || SelectedModule is null) return;
-            
-            Kernel32.SuspendProcess(SelectedProcess.Id);
-            
+
+            // Kernel32.SuspendProcess(SelectedProcess.Id);
+
             //Do the dump
             DumpSelectedModule();
-            
-            Kernel32.ResumeProcess(SelectedProcess.Id);
+
+            //Kernel32.ResumeProcess(SelectedProcess.Id);
         }
 
         public void DumpSelectedModule()
         {
-            // getting minimum & maximum address
-            
-            Kernel32.SYSTEM_INFO sysInfo = new Kernel32.SYSTEM_INFO();
-            Kernel32.GetSystemInfo(out sysInfo);  
-
-            IntPtr procMinAddress = sysInfo.lpMinimumApplicationAddress;
-            IntPtr procMaxAddress = sysInfo.lpMaximumApplicationAddress;
-
-            // saving the values as long ints so I won't have to do a lot of casts later
-            long procMinAddressL = (long)procMinAddress;
-            long procMaxAddressL = (long)procMaxAddress;
-
             Process process = SelectedProcess;
 
-            // opening the process with desired access level
-            IntPtr processHandle = SelectedProcess.Handle;
-            //OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_WM_READ, false, process.Id);
+            IntPtr processHandle = process.Handle;
 
-            // this will store any information we get from VirtualQueryEx()
-            Kernel32.MEMORY_BASIC_INFORMATION memBasicInfo = new Kernel32.MEMORY_BASIC_INFORMATION();
+            IntPtr snapshotHandle =
+                Kernel32.CreateToolhelp32Snapshot(Kernel32.SnapshotFlags.HeapList, (uint) process.Id);
+            uint error = Kernel32.GetLastError();
 
-            IntPtr bytesRead = IntPtr.Zero;  // number of bytes read with ReadProcessMemory
+            Kernel32.HEAPLIST32 heaplist32 = new();
+            heaplist32.dwSize = (UIntPtr) Marshal.SizeOf(heaplist32);
 
-            while (procMinAddressL < procMaxAddressL)
+            bool success = Kernel32.Heap32ListFirst(snapshotHandle, ref heaplist32);
+            error = Kernel32.GetLastError();
+            if (error == 0x12)
+                return;
+
+            if (!success)
             {
-                List<byte> bytes = new();
-                // 28 = sizeof(MEMORY_BASIC_INFORMATION)
-                Kernel32.VirtualQueryEx(processHandle, procMinAddress, out memBasicInfo, (IntPtr)28);
-                
-                // if this memory chunk is accessible
-                if (memBasicInfo.Protect == 
-                Kernel32.PAGE_READWRITE && memBasicInfo.State == Kernel32.MEM_COMMIT)
+                Debug.WriteLine(error);
+                throw new Exception($"{nameof(Kernel32.Heap32ListFirst)}  failed");
+            }
+
+            do
+            {
+                Kernel32.HEAPENTRY32 he = new();
+                he.dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPENTRY32));
+
+                success = Kernel32.Heap32First(ref he, (uint) process.Id, heaplist32.th32HeapID);
+                error = Kernel32.GetLastError();
+
+                if (error == 0x12)
+                    return;
+
+                if (!success)
                 {
-                    byte[] buffer = new byte[(int)memBasicInfo.RegionSize];
-
-                    // read everything in the buffer above
-                    Kernel32.ReadProcessMemory(processHandle, 
-                    memBasicInfo.BaseAddress, buffer, memBasicInfo.RegionSize, ref bytesRead);
-
-                    // then output this in the file
-                    File.WriteAllBytes($"{process.ProcessName}-{memBasicInfo.BaseAddress:X}",buffer);
-                    
+                    Debug.WriteLine(error);
+                    throw new Exception($"{nameof(Kernel32.Heap32First)} failed");
                 }
 
-                // move to the next memory chunk
-                procMinAddressL += (long)memBasicInfo.RegionSize;
-                procMinAddress = new IntPtr(procMinAddressL);
-            }
-            
+                //Write the heap to disk
+                do
+                {
+                    IntPtr bytesRead = IntPtr.Zero;
+
+                    byte[] bytes = new byte[(int) he.dwBlockSize];
+                    success = Kernel32.ReadProcessMemory(processHandle,
+                        (IntPtr) he.dwAddress.ToUInt64(), bytes, (IntPtr) he.dwBlockSize.ToUInt64(),
+                        ref bytesRead);
+                    error = Kernel32.GetLastError();
+                    
+                    if (!success)
+                    {
+                        Debug.WriteLine(error);
+                        throw new Exception($"{nameof(Kernel32.ReadProcessMemory)} failed");
+                    }
+
+                    File.WriteAllBytes($"{process.ProcessName}-{he.dwAddress:X}.dmp", bytes);
+
+                    he.dwSize = (UIntPtr) Marshal.SizeOf(he);
+                } while (Kernel32.Heap32Next(ref he));
+
+
+                heaplist32.dwSize = (UIntPtr) Marshal.SizeOf(heaplist32);
+            } while (Kernel32.Heap32ListNext(snapshotHandle, ref heaplist32));
+
         }
-        
-        private const uint PageExecuteAny = Kernel32.PAGE_EXECUTE | Kernel32.PAGE_EXECUTE_READ | Kernel32.PAGE_EXECUTE_READWRITE | Kernel32.PAGE_EXECUTE_WRITECOPY;
+
+        private const uint PageExecuteAny = Kernel32.PAGE_EXECUTE | Kernel32.PAGE_EXECUTE_READ |
+                                            Kernel32.PAGE_EXECUTE_READWRITE | Kernel32.PAGE_EXECUTE_WRITECOPY;
+
         private void DumpSelectedModuleFirst()
         {
             Process process = SelectedProcess;
@@ -186,33 +202,34 @@ namespace HeapingDumper
             IntPtr memRegionAddr = process.MainModule.BaseAddress;
             IntPtr mainModuleEnd = process.MainModule.BaseAddress + process.MainModule.ModuleMemorySize;
             uint queryResult;
-            
+
             do
             {
                 var memInfo = new Kernel32.MEMORY_BASIC_INFORMATION();
-                queryResult = Kernel32.VirtualQueryEx(process.Handle, memRegionAddr, out memInfo, (IntPtr)Marshal.SizeOf(memInfo));
+                queryResult = (uint) Kernel32.VirtualQueryEx(process.Handle, memRegionAddr, out memInfo,
+                    (uint) Marshal.SizeOf(memInfo));
                 if (queryResult != 0)
                 {
-                    if ((memInfo.State & Kernel32.MEM_COMMIT) != 0 && (memInfo.Protect & Kernel32.PAGE_GUARD) == 0 && (memInfo.Protect & PageExecuteAny) != 0)
+                    if ((memInfo.State & Kernel32.MEM_COMMIT) != 0 && (memInfo.Protect & Kernel32.PAGE_GUARD) == 0 &&
+                        (memInfo.Protect & PageExecuteAny) != 0)
                         memRegions.Add(memInfo);
-                    memRegionAddr = memInfo.BaseAddress + (int)memInfo.RegionSize;
+                    memRegionAddr = (IntPtr) (memInfo.BaseAddress + (int) memInfo.RegionSize);
                 }
-            } while (queryResult != 0 && (ulong)memRegionAddr < (ulong)mainModuleEnd);
-            
+            } while (queryResult != 0 && (ulong) memRegionAddr < (ulong) mainModuleEnd);
+
             Dictionary<IntPtr, byte[]> readMemory = new Dictionary<IntPtr, byte[]>();
             foreach (Kernel32.MEMORY_BASIC_INFORMATION memRegion in memRegions)
-                readMemory[memRegion.BaseAddress] = Kernel32.ReadBytes(process.Handle, memRegion.BaseAddress, (uint)memRegion.RegionSize);
+                readMemory[(IntPtr) memRegion.BaseAddress] = Kernel32.ReadBytes(process.Handle,
+                    (IntPtr) memRegion.BaseAddress, (uint) memRegion.RegionSize);
 
-            foreach (KeyValuePair<IntPtr,byte[]> pair in readMemory)
+            foreach (KeyValuePair<IntPtr, byte[]> pair in readMemory)
             {
-                File.WriteAllBytes($"{process.ProcessName}-{pair.Key:X}",pair.Value);
+                File.WriteAllBytes($"{process.ProcessName}-{pair.Key:X}", pair.Value);
             }
-            
+
             // File.WriteAllBytes("ER_Dump.exe", bytes);
             // MemoryStream stream = new MemoryStream(bytes);
             // PEHeaders peHeaders = new PEHeaders(stream);
-            
-            
         }
 
         private ObservableCollection<ProcessModule> _modules;
