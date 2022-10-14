@@ -81,6 +81,10 @@ namespace HeapingDumper {
                         foreach (ProcessModule module in modules) {
                             Modules.Add(module);
                         }
+
+                        SelectedModule =
+                            Modules.FirstOrDefault(x => x.ModuleName.Contains(SelectedProcess.ProcessName));
+                        ModuleCollectionView.Refresh();
                     } catch { } finally {
                         OnPropertyChanged(nameof(ModuleCollectionView));
                         ModuleCollectionView.Filter += FilterModules;
@@ -89,15 +93,66 @@ namespace HeapingDumper {
             }
         }
 
+        private ObservableCollection<ProcessModule> _modules;
+
+        public ObservableCollection<ProcessModule> Modules { get => _modules; set => SetField(ref _modules, value); }
+
+        public ICollectionView ModuleCollectionView => CollectionViewSource.GetDefaultView(Modules);
+
+        private bool FilterModules(object obj) {
+            if (obj is ProcessModule module) {
+                return module.ModuleName.ToLower().Contains(ModuleFilter);
+            }
+
+            return false;
+        }
+
+        private string _moduleFilter = string.Empty;
+
+        public string ModuleFilter {
+            get => _moduleFilter;
+            set {
+                if (SetField(ref _moduleFilter, value)) {
+                    ModuleCollectionView.Refresh();
+                }
+            }
+        }
+
+        public ProcessModule? SelectedModule { get; set; }
+
         private void Dump(object sender, RoutedEventArgs e) {
             if (SelectedProcess is null || SelectedModule is null) return;
 
-            // Kernel32.SuspendProcess(SelectedProcess.Id);
+            //Kernel32.SuspendProcess(SelectedProcess.Id);
 
-            //Do the dump
-            DumpSelectedModule();
+            //Do the 
+            BuildSectionHeaders();
+            //DumpSelectedModule();
 
             //Kernel32.ResumeProcess(SelectedProcess.Id);
+        }
+
+        private List<PE32Section> _sectionHeaders;
+
+        private unsafe void BuildSectionHeaders() {
+            _sectionHeaders = new List<PE32Section>();
+            IntPtr dllBase = SelectedProcess.MainModule.BaseAddress;
+            byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle,
+                dllBase, 0x1000);
+
+            fixed (byte* pHeader = bytes) {
+                PE32.IMAGE_DOS_HEADER dosHeader = Marshal.PtrToStructure<PE32.IMAGE_DOS_HEADER>((IntPtr) pHeader);
+                byte* pNTHeaders = (pHeader + dosHeader.e_lfanew);
+                PE32.IMAGE_NT_HEADERS64 ntHeaders = Marshal.PtrToStructure<PE32.IMAGE_NT_HEADERS64>((IntPtr) pNTHeaders);
+                byte* pSectionHeaders = pNTHeaders + Marshal.SizeOf(typeof(PE32.IMAGE_NT_HEADERS64));
+                for (int i = 0; i < ntHeaders.FileHeader.NumberOfSections; i++) {
+                    byte* pSection = pSectionHeaders + i * Marshal.SizeOf(typeof(PE32.IMAGE_SECTION_HEADER));
+                    PE32.IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<PE32.IMAGE_SECTION_HEADER>((IntPtr) pSection);
+                    string sectionName = new string(sectionHeader.Name);
+                    _sectionHeaders.Add(new(sectionName, dllBase + (int) sectionHeader.VirtualAddress,
+                        sectionHeader.VirtualSize));
+                }
+            }
         }
 
         public void DumpSelectedModule() {
@@ -109,11 +164,8 @@ namespace HeapingDumper {
                 Kernel32.CreateToolhelp32Snapshot(Kernel32.SnapshotFlags.HeapList, (uint) process.Id);
             uint error = Kernel32.GetLastError();
 
-            Kernel32.HEAPLIST32 heaplist32 = new() {
-                dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPLIST32))
-            };
-
-            bool success = Kernel32.Heap32ListFirst(snapshotHandle, ref heaplist32);
+            Vanara.PInvoke.Kernel32.HEAPLIST32 heaplist32 = Vanara.PInvoke.Kernel32.HEAPLIST32.Default;
+            bool success = Vanara.PInvoke.Kernel32.Heap32ListFirst(snapshotHandle, ref heaplist32);
             error = Kernel32.GetLastError();
             if (error == 0x12) return;
 
@@ -122,13 +174,10 @@ namespace HeapingDumper {
                 throw new Exception($"{nameof(Kernel32.Heap32ListFirst)}  failed");
             }
 
-            do
-            {
-                Kernel32.HEAPENTRY32 he = new() {
-                    dwSize = (UIntPtr) Marshal.SizeOf(typeof(Kernel32.HEAPENTRY32))
-                };
+            do {
+                Vanara.PInvoke.Kernel32.HEAPENTRY32 he = Vanara.PInvoke.Kernel32.HEAPENTRY32.Default;
 
-                success = Kernel32.Heap32First(ref he, (uint) process.Id, heaplist32.th32HeapID);
+                success = Vanara.PInvoke.Kernel32.Heap32First(ref he, (uint) process.Id, heaplist32.th32HeapID);
                 error = Kernel32.GetLastError();
 
                 if (error == 0x12) return;
@@ -139,8 +188,7 @@ namespace HeapingDumper {
                 }
 
                 //Write the heap to disk
-                do 
-                {
+                do {
                     IntPtr bytesRead = IntPtr.Zero;
 
                     byte[] bytes = new byte[(int) he.dwBlockSize];
@@ -156,12 +204,12 @@ namespace HeapingDumper {
 
                     File.WriteAllBytes($"{process.ProcessName}-{he.dwAddress:X}.dmp", bytes);
 
-                    he.dwSize = (UIntPtr) Marshal.SizeOf(he);
-                } while (Kernel32.Heap32Next(ref he));
+                    he.dwSize = Marshal.SizeOf(he);
+                } while (Vanara.PInvoke.Kernel32.Heap32Next(ref he));
 
 
-                heaplist32.dwSize = (UIntPtr) Marshal.SizeOf(heaplist32);
-            } while (Kernel32.Heap32ListNext(snapshotHandle, ref heaplist32));
+                heaplist32.dwSize = Marshal.SizeOf(heaplist32);
+            } while (Vanara.PInvoke.Kernel32.Heap32ListNext(snapshotHandle, ref heaplist32));
         }
 
         private const uint PageExecuteAny = Kernel32.PAGE_EXECUTE | Kernel32.PAGE_EXECUTE_READ |
@@ -200,40 +248,11 @@ namespace HeapingDumper {
             // PEHeaders peHeaders = new PEHeaders(stream);
         }
 
-        private ObservableCollection<ProcessModule> _modules;
-
-        public ObservableCollection<ProcessModule> Modules { get => _modules; set => SetField(ref _modules, value); }
-
-        public ICollectionView ModuleCollectionView => CollectionViewSource.GetDefaultView(Modules);
-
-        private bool FilterModules(object obj) {
-            if (obj is ProcessModule module) {
-                return module.ModuleName.ToLower().Contains(ModuleFilter);
-            }
-
-            return false;
-        }
-
-        private string _moduleFilter = string.Empty;
-
-        public string ModuleFilter {
-            get => _moduleFilter;
-            set {
-                if (SetField(ref _moduleFilter, value)) {
-                    ModuleCollectionView.Refresh();
-                }
-            }
-        }
-
-        public ProcessModule? SelectedModule { get; set; }
-
-
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged([CallerMemberName] string? name = null) {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
-
 
         protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null) {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;

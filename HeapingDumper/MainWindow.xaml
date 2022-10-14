@@ -8,28 +8,30 @@
         Title="Heaping Dumper v1.0" Height="450" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="25"/>
-                <RowDefinition/>
+                <RowDefinition Height="25" />
+                <RowDefinition />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition/>
+                <ColumnDefinition />
+                <ColumnDefinition />
             </Grid.ColumnDefinitions>
-            <TextBox Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0"/>
-            <ListBox ItemsSource="{Binding Processes}" DisplayMemberPath="ProcessName" SelectedItem="{Binding SelectedProcess}" Grid.Row="1" />
-            <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1"/>
-            <ListBox ItemsSource="{Binding Modules}" DisplayMemberPath="ModuleName" SelectedItem="{Binding SelectedModule}" Grid.Row="1" Grid.Column="1"/>
+            <TextBox Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" />
+            <ListBox ItemsSource="{Binding Processes}" DisplayMemberPath="ProcessName"
+                     SelectedItem="{Binding SelectedProcess}" Grid.Row="1" />
+            <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1" />
+            <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
+                     SelectedItem="{Binding SelectedModule}" Grid.Row="1" Grid.Column="1"/>
         </Grid>
-        
+
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
             <Button Content="Refresh" Click="Refresh" />
-            <Separator Height="5"/>
-            <Button Content="Dump" Click="Dump"/>
+            <Separator Height="5" />
+            <Button Content="Dump" Click="Dump" />
         </StackPanel>
 
 
