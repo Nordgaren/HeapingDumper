@@ -145,7 +145,6 @@ namespace HeapingDumper {
                 IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(pHeader + dosHeader->e_lfanew);
                 IMAGE_SECTION_HEADER* pSectionHeaders = (IMAGE_SECTION_HEADER*)((IntPtr)pHeader + dosHeader->e_lfanew + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64)));
 
-                uint prev = 0;
                 for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
                     pSectionHeaders[i].PointerToRawData = pSectionHeaders[i].VirtualAddress;
                     pSectionHeaders[i].SizeOfRawData = pSectionHeaders[i + 1].VirtualAddress - pSectionHeaders[i].VirtualAddress;
