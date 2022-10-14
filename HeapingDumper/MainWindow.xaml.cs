@@ -20,6 +20,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using static HeapingDumper.PE32;
 
 namespace HeapingDumper {
     /// <summary>
@@ -132,25 +133,23 @@ namespace HeapingDumper {
             //Kernel32.ResumeProcess(SelectedProcess.Id);
         }
 
-        private List<PE32Section> _sectionHeaders;
+        private List<IMAGE_SECTION_HEADER> _sectionHeaders;
 
         private unsafe void BuildSectionHeaders() {
-            _sectionHeaders = new List<PE32Section>();
+            _sectionHeaders = new List<IMAGE_SECTION_HEADER>();
             IntPtr dllBase = SelectedProcess.MainModule.BaseAddress;
             byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle,
                 dllBase, 0x1000);
 
             fixed (byte* pHeader = bytes) {
-                PE32.IMAGE_DOS_HEADER dosHeader = Marshal.PtrToStructure<PE32.IMAGE_DOS_HEADER>((IntPtr) pHeader);
+                IMAGE_DOS_HEADER dosHeader = Marshal.PtrToStructure<IMAGE_DOS_HEADER>((IntPtr) pHeader);
                 byte* pNTHeaders = (pHeader + dosHeader.e_lfanew);
-                PE32.IMAGE_NT_HEADERS64 ntHeaders = Marshal.PtrToStructure<PE32.IMAGE_NT_HEADERS64>((IntPtr) pNTHeaders);
-                byte* pSectionHeaders = pNTHeaders + Marshal.SizeOf(typeof(PE32.IMAGE_NT_HEADERS64));
+                IMAGE_NT_HEADERS64 ntHeaders = Marshal.PtrToStructure<IMAGE_NT_HEADERS64>((IntPtr) pNTHeaders);
+                byte* pSectionHeaders = pNTHeaders + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64));
                 for (int i = 0; i < ntHeaders.FileHeader.NumberOfSections; i++) {
-                    byte* pSection = pSectionHeaders + i * Marshal.SizeOf(typeof(PE32.IMAGE_SECTION_HEADER));
-                    PE32.IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<PE32.IMAGE_SECTION_HEADER>((IntPtr) pSection);
-                    string sectionName = new string(sectionHeader.Name);
-                    _sectionHeaders.Add(new(sectionName, dllBase + (int) sectionHeader.VirtualAddress,
-                        sectionHeader.VirtualSize));
+                    byte* pSection = pSectionHeaders + i * Marshal.SizeOf(typeof(IMAGE_SECTION_HEADER));
+                    IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<IMAGE_SECTION_HEADER>((IntPtr) pSection);
+                    _sectionHeaders.Add(sectionHeader);
                 }
             }
         }

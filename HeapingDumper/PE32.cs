@@ -430,5 +430,9 @@ public class PE32 {
         [FieldOffset(36)] public DataSectionFlags Characteristics;
 
         public string Section { get { return new string(Name); } }
+
+        public override string ToString() {
+            return Section;
+        }
     }
 }
