@@ -143,7 +143,7 @@ namespace HeapingDumper {
 
             fixed (byte* pHeader = bytes) {
                 IMAGE_DOS_HEADER dosHeader = Marshal.PtrToStructure<IMAGE_DOS_HEADER>((IntPtr) pHeader);
-                byte* pNTHeaders = (pHeader + dosHeader.e_lfanew);
+                byte* pNTHeaders = pHeader + dosHeader.e_lfanew;
                 IMAGE_NT_HEADERS64 ntHeaders = Marshal.PtrToStructure<IMAGE_NT_HEADERS64>((IntPtr) pNTHeaders);
                 byte* pSectionHeaders = pNTHeaders + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64));
                 for (int i = 0; i < ntHeaders.FileHeader.NumberOfSections; i++) {
