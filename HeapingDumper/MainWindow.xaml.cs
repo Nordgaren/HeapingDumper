@@ -127,26 +127,28 @@ namespace HeapingDumper {
             //Kernel32.SuspendProcess(SelectedProcess.Id);
 
             //Do the 
-            BuildSectionHeaders();
             //DumpSelectedModule();
+            byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle, SelectedProcess.MainModule.BaseAddress,
+                (uint) SelectedProcess.MainModule.ModuleMemorySize);
+            RealignSectionHeaders(bytes);
+            
+            File.WriteAllBytes("testdump.exe", bytes);
 
             //Kernel32.ResumeProcess(SelectedProcess.Id);
         }
 
         private List<IMAGE_SECTION_HEADER> _sectionHeaders;
 
-        private unsafe void BuildSectionHeaders() {
-            _sectionHeaders = new List<IMAGE_SECTION_HEADER>();
-            byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle,
-                SelectedProcess.MainModule.BaseAddress, 0x1000);
-
+        private unsafe void RealignSectionHeaders(byte[] bytes) {
             fixed (byte* pHeader = bytes) {
                 IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)pHeader;
                 IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(pHeader + dosHeader->e_lfanew);
                 IMAGE_SECTION_HEADER* pSectionHeaders = (IMAGE_SECTION_HEADER*)((IntPtr)pHeader + dosHeader->e_lfanew + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64)));
+
+                uint prev = 0;
                 for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
-                    IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<IMAGE_SECTION_HEADER>( (IntPtr)(pSectionHeaders + i));
-                    _sectionHeaders.Add(sectionHeader);
+                    pSectionHeaders[i].PointerToRawData = pSectionHeaders[i].VirtualAddress;
+                    pSectionHeaders[i].SizeOfRawData = pSectionHeaders[i + 1].VirtualAddress - pSectionHeaders[i].VirtualAddress;
                 }
             }
         }
@@ -239,9 +241,6 @@ namespace HeapingDumper {
                 File.WriteAllBytes($"{process.ProcessName}-{pair.Key:X}", pair.Value);
             }
 
-            // File.WriteAllBytes("ER_Dump.exe", bytes);
-            // MemoryStream stream = new MemoryStream(bytes);
-            // PEHeaders peHeaders = new PEHeaders(stream);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
