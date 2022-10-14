@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 namespace HeapingDumper;
 
 public class PE32 {
-    
     [Flags]
     public enum DataSectionFlags : uint {
         /// <summary>
@@ -218,50 +217,44 @@ public class PE32 {
         MemoryWrite = 0x80000000
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct IMAGE_DOS_HEADER {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-        public char[] e_magic; // Magic number
+    [StructLayout(LayoutKind.Sequential, Pack=4)]
+    public unsafe struct IMAGE_DOS_HEADER {
+        public fixed byte e_magic[2]; // Magic number
+        public ushort e_cblp; // Bytes on last page of file
+        public ushort e_cp; // Pages in file
+        public ushort e_crlc; // Relocations
+        public ushort e_cparhdr; // Size of header in paragraphs
+        public ushort e_minalloc; // Minimum extra paragraphs needed
+        public ushort e_maxalloc; // Maximum extra paragraphs needed
+        public ushort e_ss; // Initial (relative) SS value
+        public ushort e_sp; // Initial SP value
+        public ushort e_csum; // Checksum
+        public ushort e_ip; // Initial IP value
+        public ushort e_cs; // Initial (relative) CS value
+        public ushort e_lfarlc; // File address of relocation table
+        public ushort e_ovno; // Overlay number
 
-        public UInt16 e_cblp; // Bytes on last page of file
-        public UInt16 e_cp; // Pages in file
-        public UInt16 e_crlc; // Relocations
-        public UInt16 e_cparhdr; // Size of header in paragraphs
-        public UInt16 e_minalloc; // Minimum extra paragraphs needed
-        public UInt16 e_maxalloc; // Maximum extra paragraphs needed
-        public UInt16 e_ss; // Initial (relative) SS value
-        public UInt16 e_sp; // Initial SP value
-        public UInt16 e_csum; // Checksum
-        public UInt16 e_ip; // Initial IP value
-        public UInt16 e_cs; // Initial (relative) CS value
-        public UInt16 e_lfarlc; // File address of relocation table
-        public UInt16 e_ovno; // Overlay number
+        public fixed ushort e_res1[4]; // Reserved words
 
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public UInt16[] e_res1; // Reserved words
+        public ushort e_oemid; // OEM identifier (for e_oeminfo)
+        public ushort e_oeminfo; // OEM information; e_oemid specific
 
-        public UInt16 e_oemid; // OEM identifier (for e_oeminfo)
-        public UInt16 e_oeminfo; // OEM information; e_oemid specific
+        public fixed ushort e_res2[10]; // Reserved words
 
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-        public UInt16[] e_res2; // Reserved words
+        public int e_lfanew; // File address of new exe header
 
-        public Int32 e_lfanew; // File address of new exe header
-
-        private string _e_magic { get { return new string(e_magic); } }
-
-        public bool isValid { get { return _e_magic == "MZ"; } }
+        public bool isValid { get { return e_magic[0] == 'M' && e_magic[0] == 'Z'; } }
     }
 
-    [StructLayout(LayoutKind.Explicit, Size = 20)]
+    [StructLayout(LayoutKind.Sequential)]
     public struct IMAGE_FILE_HEADER {
-        [FieldOffset(0)] public UInt16 Machine;
-        [FieldOffset(2)] public UInt16 NumberOfSections;
-        [FieldOffset(4)] public UInt32 TimeDateStamp;
-        [FieldOffset(8)] public UInt32 PointerToSymbolTable;
-        [FieldOffset(12)] public UInt32 NumberOfSymbols;
-        [FieldOffset(16)] public UInt16 SizeOfOptionalHeader;
-        [FieldOffset(18)] public UInt16 Characteristics;
+        public ushort Machine;
+        public ushort NumberOfSections;
+        public uint TimeDateStamp;
+        public uint PointerToSymbolTable;
+        public uint NumberOfSymbols;
+        public ushort SizeOfOptionalHeader;
+        public ushort Characteristics;
     }
 
     public enum SubSystemType : ushort {
@@ -416,23 +409,30 @@ public class PE32 {
 
     [StructLayout(LayoutKind.Explicit)]
     public unsafe struct IMAGE_SECTION_HEADER {
-        [FieldOffset(0)] [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public char[] Name;
-
-        [FieldOffset(8)] public UInt32 VirtualSize;
-        [FieldOffset(12)] public UInt32 VirtualAddress;
-        [FieldOffset(16)] public UInt32 SizeOfRawData;
-        [FieldOffset(20)] public UInt32 PointerToRawData;
-        [FieldOffset(24)] public UInt32 PointerToRelocations;
-        [FieldOffset(28)] public UInt32 PointerToLinenumbers;
-        [FieldOffset(32)] public UInt16 NumberOfRelocations;
-        [FieldOffset(34)] public UInt16 NumberOfLinenumbers;
+        [FieldOffset(0)] public fixed byte Name[8];
+        [FieldOffset(8)] public uint VirtualSize;
+        [FieldOffset(12)] public uint VirtualAddress;
+        [FieldOffset(16)] public uint SizeOfRawData;
+        [FieldOffset(20)] public uint PointerToRawData;
+        [FieldOffset(24)] public uint PointerToRelocations;
+        [FieldOffset(28)] public uint PointerToLinenumbers;
+        [FieldOffset(32)] public ushort NumberOfRelocations;
+        [FieldOffset(34)] public ushort NumberOfLinenumbers;
         [FieldOffset(36)] public DataSectionFlags Characteristics;
 
-        public string Section { get { return new string(Name); } }
-
         public override string ToString() {
-            return Section;
+            byte[] bytes = new byte[9];
+            int index = 0;
+            fixed (byte* ptr = Name)
+            {
+                for (byte* counter = ptr; *counter != 0; counter++)
+                {
+                    bytes[index++] = *counter;
+                }
+
+            }
+    
+            return System.Text.Encoding.ASCII.GetString(bytes, 0, 8);
         }
     }
 }

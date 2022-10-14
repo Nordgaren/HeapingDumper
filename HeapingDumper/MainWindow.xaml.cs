@@ -137,18 +137,15 @@ namespace HeapingDumper {
 
         private unsafe void BuildSectionHeaders() {
             _sectionHeaders = new List<IMAGE_SECTION_HEADER>();
-            IntPtr dllBase = SelectedProcess.MainModule.BaseAddress;
             byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle,
-                dllBase, 0x1000);
+                SelectedProcess.MainModule.BaseAddress, 0x1000);
 
             fixed (byte* pHeader = bytes) {
-                IMAGE_DOS_HEADER dosHeader = Marshal.PtrToStructure<IMAGE_DOS_HEADER>((IntPtr) pHeader);
-                byte* pNTHeaders = pHeader + dosHeader.e_lfanew;
-                IMAGE_NT_HEADERS64 ntHeaders = Marshal.PtrToStructure<IMAGE_NT_HEADERS64>((IntPtr) pNTHeaders);
-                byte* pSectionHeaders = pNTHeaders + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64));
-                for (int i = 0; i < ntHeaders.FileHeader.NumberOfSections; i++) {
-                    byte* pSection = pSectionHeaders + i * Marshal.SizeOf(typeof(IMAGE_SECTION_HEADER));
-                    IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<IMAGE_SECTION_HEADER>((IntPtr) pSection);
+                IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)pHeader;
+                IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(pHeader + dosHeader->e_lfanew);
+                IMAGE_SECTION_HEADER* pSectionHeaders = (IMAGE_SECTION_HEADER*)((IntPtr)pHeader + dosHeader->e_lfanew + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64)));
+                for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+                    IMAGE_SECTION_HEADER sectionHeader =  Marshal.PtrToStructure<IMAGE_SECTION_HEADER>( (IntPtr)(pSectionHeaders + i));
                     _sectionHeaders.Add(sectionHeader);
                 }
             }
