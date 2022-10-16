@@ -130,12 +130,12 @@ namespace HeapingDumper {
 
             //Do the dump
             //DumpSelectedModule();
-            ScyllaDumpProcessW(SelectedProcess.Id,null, SelectedModule.BaseAddress, SelectedModule.EntryPointAddress, @"C:\Users\Nord\source\repos\CSharp\HeapingDumper\src\HeapingDumper\bin\Debug\net6.0-windows\eldenring_dump_heapingdumper.exe");
+            ScyllaDumpProcessW(SelectedProcess.Id,null, SelectedModule.BaseAddress, SelectedModule.EntryPointAddress, @"C:\Users\Nord\source\repos\CSharp\HeapingDumper\src\HeapingDumper\bin\Debug\net6.0-windows\dump\eldenring_dump_heapingdumper.exe");
             
             // byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle, SelectedModule.BaseAddress,
             //     (uint) SelectedModule.ModuleMemorySize);
             //RealignSectionHeaders(bytes);
-            //RunMemoryMirror();
+            RunMemoryMirror();
 
             SelectedProcess.ResumeProcess();
         }
@@ -174,7 +174,7 @@ namespace HeapingDumper {
                 var baseAddress = chunk.Key;
                 var segments = chunk.Value.Segments;
 
-                string path = $"./{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+                string path = $"./dump/{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
                 var fileStream = File.OpenWrite(path);
 
                 foreach (var segment in segments) {
