@@ -9,6 +9,7 @@
     <Window.DataContext>
         <local:MainWindowViewModel x:Name="MainWindowViewModel"/>
     </Window.DataContext>
+    
     <Grid Margin="10,10,10,5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />

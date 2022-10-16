@@ -17,8 +17,8 @@ namespace HeapingDumper;
 
 public class MainWindowViewModel : INotifyPropertyChanged {
     
-    public ICommand RefreshCommand;
-    public ICommand DumpCommand;
+    public ICommand RefreshCommand { get; }
+    public ICommand DumpCommand { get; }
 
     public MainWindowViewModel() {
         Processes = new(Process.GetProcesses());

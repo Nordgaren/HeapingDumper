@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -15,8 +16,22 @@ public class DumpCommand : CommandBase {
 
     public DumpCommand(MainWindowViewModel mainWindowViewModel) {
         _mainWindowViewModel = mainWindowViewModel;
+        _mainWindowViewModel.PropertyChanged += MainWindowPropertyChanged;
     }
-    
+
+    private void MainWindowPropertyChanged(object? sender, PropertyChangedEventArgs e) {
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedProcess)
+            or nameof(MainWindowViewModel.SelectedModule))
+        {
+            OnCanExecuteChanged();
+        }
+    }
+
+    public override bool CanExecute(object? parameter) {
+        if (_mainWindowViewModel.SelectedProcess is null || _mainWindowViewModel.SelectedModule is null) return false;
+        return base.CanExecute(parameter);
+    }
+
     [DllImport("Scylla.dll")]
     static extern bool ScyllaDumpProcessW(int pid, [MarshalAs(UnmanagedType.LPWStr)] string fileToDump,
         IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)] string fileResult);
@@ -25,8 +40,6 @@ public class DumpCommand : CommandBase {
         
         Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
         ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
-        
-        if (selectedProcess is null || selectedModule is null) return;
         
         string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ?? throw new InvalidOperationException("Module file name invalid");
         string filePath = Path.GetDirectoryName(selectedModule.FileName) ?? throw new InvalidOperationException("Module file path invalid");
