@@ -40,7 +40,7 @@
             <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" />
             <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
                      SelectedItem="{Binding SelectedModule}" Grid.Row="2" Grid.Column="1"/>
-            <TextBox Grid.Row="3" Grid.ColumnSpan="2"/>
+            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" />
         </Grid>
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">

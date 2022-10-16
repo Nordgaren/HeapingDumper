@@ -19,14 +19,6 @@ public class DumpCommand : CommandBase {
         _mainWindowViewModel.PropertyChanged += MainWindowPropertyChanged;
     }
 
-    private void MainWindowPropertyChanged(object? sender, PropertyChangedEventArgs e) {
-        if (e.PropertyName is nameof(MainWindowViewModel.SelectedProcess)
-            or nameof(MainWindowViewModel.SelectedModule))
-        {
-            OnCanExecuteChanged();
-        }
-    }
-
     public override bool CanExecute(object? parameter) {
         if (_mainWindowViewModel.SelectedProcess is null || _mainWindowViewModel.SelectedModule is null) return false;
         return base.CanExecute(parameter);
@@ -37,12 +29,13 @@ public class DumpCommand : CommandBase {
         IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)] string fileResult);
 
     public override void Execute(object? parameter) {
-        
         Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
         ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
-        
-        string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ?? throw new InvalidOperationException("Module file name invalid");
-        string filePath = Path.GetDirectoryName(selectedModule.FileName) ?? throw new InvalidOperationException("Module file path invalid");
+
+        string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ??
+                          throw new InvalidOperationException("Module file name invalid");
+        string filePath = Path.GetDirectoryName(selectedModule.FileName) ??
+                          throw new InvalidOperationException("Module file path invalid");
         OpenFileDialog ofd = new() {
             Title = "Select Dump Output Path",
             InitialDirectory = filePath,
@@ -50,27 +43,34 @@ public class DumpCommand : CommandBase {
             CheckFileExists = false,
             CheckPathExists = false
         };
-        
+
         if (!ofd.ShowDialog().Value) {
+            _mainWindowViewModel.AppendLog("No file selected...");
             return;
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(ofd.FileName) ?? throw new InvalidOperationException("Dump output path invalid"));
-        
+        string outputPath = Path.GetDirectoryName(ofd.FileName) ??
+                            throw new InvalidOperationException("Dump output path invalid");
+        Directory.CreateDirectory(outputPath);
+
         selectedProcess.SuspendProcess();
 
-        ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress, selectedModule.EntryPointAddress,
-            ofd.FileName);
+        try {
+            ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress, selectedModule.EntryPointAddress,
+                ofd.FileName);
 
-        RunMemoryMirror(selectedProcess);
-
-        selectedProcess.ResumeProcess();
+            RunMemoryMirror(selectedProcess, outputPath);
+        } catch (Exception e) {
+            _mainWindowViewModel.AppendLog($"Exception: {e.Message}");
+            File.WriteAllText("DumpException.txt", e.ToString());
+        } finally {
+            selectedProcess.ResumeProcess();
+        }
     }
 
     public record DumpableChunk(string? Name, IntPtr Size, List<ProcessUtilities.ProcessMemorySegment> Segments);
 
-    private void RunMemoryMirror(Process selectedProcess) {
-        
+    private void RunMemoryMirror(Process selectedProcess, string outputPath) {
         var memorySegments = selectedProcess.EnumerateMemorySegments();
         var snapshot = selectedProcess.CreateSnapshot();
         var modules = SnapshotModuleHelper.EnumerateModules(snapshot);
@@ -103,7 +103,7 @@ public class DumpCommand : CommandBase {
             var baseAddress = chunk.Key;
             var segments = chunk.Value.Segments;
 
-            string path = $"./dump/{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+            string path = $"{outputPath}/{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
             var fileStream = File.OpenWrite(path);
 
             foreach (var segment in segments) {
@@ -128,7 +128,15 @@ public class DumpCommand : CommandBase {
                 }
             }
 
-            Console.WriteLine($"Written dump to {path} ({chunk.Value.Size})");
+            _mainWindowViewModel.AppendLog($"Written dump to {path} ({chunk.Value.Size})");
+        }
+    }
+
+
+    private void MainWindowPropertyChanged(object? sender, PropertyChangedEventArgs e) {
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedProcess)
+            or nameof(MainWindowViewModel.SelectedModule)) {
+            OnCanExecuteChanged();
         }
     }
 }

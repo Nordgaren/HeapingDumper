@@ -13,10 +13,8 @@ namespace HeapingDumper {
 
         private MainWindowViewModel _mainWindowViewModel;
 
-        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            if (DataContext is MainWindowViewModel vm)
-            {
+        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) {
+            if (DataContext is MainWindowViewModel vm) {
                 _mainWindowViewModel = vm;
             }
         }

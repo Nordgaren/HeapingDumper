@@ -16,7 +16,6 @@ using MemoryMirror.Shared;
 namespace HeapingDumper;
 
 public class MainWindowViewModel : INotifyPropertyChanged {
-    
     public ICommand RefreshCommand { get; }
     public ICommand DumpCommand { get; }
 
@@ -36,6 +35,11 @@ public class MainWindowViewModel : INotifyPropertyChanged {
                 ProcessCollectionView.Filter += FilterProcesses;
             }
         }
+    }
+    public string Log { get; set; } = string.Empty;
+
+    public void AppendLog(string message) {
+        Log += $"{message}\n";
     }
 
     public ICollectionView ProcessCollectionView => CollectionViewSource.GetDefaultView(Processes);
@@ -60,6 +64,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     }
 
     private Process? _selectedProcess;
+
     public Process? SelectedProcess {
         get => _selectedProcess;
         set {
@@ -83,9 +88,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     }
 
     private ProcessModule? _processModule;
-    public ProcessModule? SelectedModule { get => _processModule;
-        set => SetField(ref _processModule, value);
-    }
+    public ProcessModule? SelectedModule { get => _processModule; set => SetField(ref _processModule, value); }
 
     private ObservableCollection<ProcessModule> _modules;
 

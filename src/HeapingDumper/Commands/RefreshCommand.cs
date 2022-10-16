@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace HeapingDumper.Commands; 
+namespace HeapingDumper.Commands;
 
 public class RefreshCommand : CommandBase {
     private readonly MainWindowViewModel _mainWindowViewModel;
@@ -11,6 +11,5 @@ public class RefreshCommand : CommandBase {
 
     public override void Execute(object? parameter) {
         _mainWindowViewModel.Processes = new(Process.GetProcesses());
-
     }
 }
