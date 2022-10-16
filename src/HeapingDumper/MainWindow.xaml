@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:HeapingDumper"
         mc:Ignorable="d"
-        Title="Heaping Dumper v1.0" Height="450" Width="800">
+        Title="Heaping Dumper v1.0" Height="450" Width="800" DataContextChanged="OnDataContextChanged"
+        d:DataContext="{d:DesignInstance local:MainWindowViewModel, IsDesignTimeCreatable=True}">
     <Window.DataContext>
         <local:MainWindowViewModel x:Name="MainWindowViewModel"/>
     </Window.DataContext>
@@ -40,13 +41,14 @@
             <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" />
             <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
                      SelectedItem="{Binding SelectedModule}" Grid.Row="2" Grid.Column="1"/>
-            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" />
+            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
         </Grid>
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
             <Button Content="Refresh" Command="{Binding RefreshCommand}" />
             <Separator Height="5" />
             <Button Content="Dump" Command="{Binding DumpCommand}"/>
+            <Separator Height="5" />
         </StackPanel>
 
 

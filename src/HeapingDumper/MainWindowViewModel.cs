@@ -36,7 +36,13 @@ public class MainWindowViewModel : INotifyPropertyChanged {
             }
         }
     }
-    public string Log { get; set; } = string.Empty;
+
+    private string _log = string.Empty;
+
+    public string Log {
+        get => _log;
+        set => SetField(ref _log, value);
+    }
 
     public void AppendLog(string message) {
         Log += $"{message}\n";
