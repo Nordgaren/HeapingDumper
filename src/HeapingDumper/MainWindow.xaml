@@ -6,32 +6,46 @@
         xmlns:local="clr-namespace:HeapingDumper"
         mc:Ignorable="d"
         Title="Heaping Dumper v1.0" Height="450" Width="800">
-    <Grid>
+    <Window.DataContext>
+        <local:MainWindowViewModel x:Name="MainWindowViewModel"/>
+    </Window.DataContext>
+    <Grid Margin="10,10,10,5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="50" />
                 <RowDefinition Height="25" />
-                <RowDefinition />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <TextBox Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Label Content="Selected Process:"/>
+                <Label Content="{Binding SelectedProcess.ProcessName}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Label Content="Selected Module:"/>
+                <Label Content="{Binding SelectedModule.ModuleName}"/>
+            </StackPanel>
+            <TextBox Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" />
             <ListBox ItemsSource="{Binding Processes}" DisplayMemberPath="ProcessName"
-                     SelectedItem="{Binding SelectedProcess}" Grid.Row="1" />
-            <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1" />
+                     SelectedItem="{Binding SelectedProcess}" Grid.Row="2" />
+            <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" />
             <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
-                     SelectedItem="{Binding SelectedModule}" Grid.Row="1" Grid.Column="1"/>
+                     SelectedItem="{Binding SelectedModule}" Grid.Row="2" Grid.Column="1"/>
+            <TextBox Grid.Row="3" Grid.ColumnSpan="2"/>
         </Grid>
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
-            <Button Content="Refresh" Click="Refresh" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
             <Separator Height="5" />
-            <Button Content="Dump" Click="Dump" />
+            <Button Content="Dump" Command="{Binding DumpCommand}"/>
         </StackPanel>
 
 
