@@ -53,9 +53,9 @@
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
             <Button Content="Refresh" Command="{Binding RefreshCommand}" />
-            <Separator Height="5" />
+            <Separator Height="5" Visibility="Hidden"/>
             <Button Content="Dump" Command="{Binding DumpCommand}"/>
-            <Separator Height="5" />
+            <Separator Height="5" Visibility="Hidden" />
         </StackPanel>
 
 
