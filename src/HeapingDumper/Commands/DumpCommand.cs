@@ -49,15 +49,16 @@ public class DumpCommand : CommandBase {
             return;
         }
 
-        string outputPath = Path.GetDirectoryName(ofd.FileName) ??
+        string outputPath = $"{Path.GetDirectoryName(ofd.FileName)}/dump/" ??
                             throw new InvalidOperationException("Dump output path invalid");
         Directory.CreateDirectory(outputPath);
-
+        string outputFile = Path.GetFileName(ofd.FileName);
+        
         selectedProcess.SuspendProcess();
 
         try {
             ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress, selectedModule.EntryPointAddress,
-                ofd.FileName);
+                $"{outputPath}{outputFile}");
 
             RunMemoryMirror(selectedProcess, outputPath);
         } 
