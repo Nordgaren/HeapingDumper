@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoryMirror.CLI", "MemoryMirror.CLI\MemoryMirror.CLI.csproj", "{D631BACD-20B5-47C9-84E2-3F4E6FD15FFE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoryMirror.Shared", "MemoryMirror.Shared\MemoryMirror.Shared.csproj", "{9EECD640-02EA-4530-8441-FBEBB8F5585D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D631BACD-20B5-47C9-84E2-3F4E6FD15FFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D631BACD-20B5-47C9-84E2-3F4E6FD15FFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D631BACD-20B5-47C9-84E2-3F4E6FD15FFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D631BACD-20B5-47C9-84E2-3F4E6FD15FFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9EECD640-02EA-4530-8441-FBEBB8F5585D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EECD640-02EA-4530-8441-FBEBB8F5585D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EECD640-02EA-4530-8441-FBEBB8F5585D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EECD640-02EA-4530-8441-FBEBB8F5585D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

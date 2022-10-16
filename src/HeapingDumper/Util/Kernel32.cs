@@ -210,4 +210,29 @@ public static class Kernel32 {
         fixed (byte* p = bytes)
             return Marshal.PtrToStructure<T>((IntPtr)p);
     }
+    
+    public static void SuspendProcess(this Process process) {
+        foreach (ProcessThread thread in process.Threads) {
+            var pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
+            if (pOpenThread == IntPtr.Zero) {
+                throw new InvalidOperationException($"Could not pause process. pOpenThread = IntPtr.Zero");
+            }
+            SuspendThread(pOpenThread);
+        }
+    }
+
+    public static void ResumeProcess(this Process process) {
+        foreach (ProcessThread thread in process.Threads) {
+            var pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
+            if (pOpenThread == IntPtr.Zero) {
+                throw new InvalidOperationException($"Could not resume process. pOpenThread = IntPtr.Zero");
+            }
+            ResumeThread(pOpenThread);
+        }
+    }
+    
+}
+
+public class ProcessOperationException : Exception {
+    public ProcessOperationException(string? message) : base(message) { }
 }

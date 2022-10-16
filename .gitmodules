@@ -1,0 +1,3 @@
+[submodule "MemoryMirror"]
+	path = MemoryMirror
+	url = https://github.com/vswarte/MemoryMirror.git

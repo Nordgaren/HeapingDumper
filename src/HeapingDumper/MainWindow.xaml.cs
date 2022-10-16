@@ -20,7 +20,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using static HeapingDumper.PE32;
+using MemoryMirror.Shared;
 
 namespace HeapingDumper {
     /// <summary>
@@ -121,34 +121,85 @@ namespace HeapingDumper {
 
         public ProcessModule? SelectedModule { get; set; }
 
+        [DllImport("Scylla.dll")]
+        static extern bool ScyllaDumpProcessW(int pid, [MarshalAs(UnmanagedType.LPWStr)] string  fileToDump, IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)] string fileResult);
         private void Dump(object sender, RoutedEventArgs e) {
             if (SelectedProcess is null || SelectedModule is null) return;
 
-            //Kernel32.SuspendProcess(SelectedProcess.Id);
+            SelectedProcess.SuspendProcess();
 
-            //Do the 
+            //Do the dump
             //DumpSelectedModule();
-            byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle, SelectedProcess.MainModule.BaseAddress,
-                (uint) SelectedProcess.MainModule.ModuleMemorySize);
-            RealignSectionHeaders(bytes);
+            ScyllaDumpProcessW(SelectedProcess.Id,null, SelectedModule.BaseAddress, SelectedModule.EntryPointAddress, @"C:\Users\Nord\source\repos\CSharp\HeapingDumper\src\HeapingDumper\bin\Debug\net6.0-windows\eldenring_dump_heapingdumper.exe");
             
-            File.WriteAllBytes("testdump.exe", bytes);
+            // byte[] bytes = Kernel32.ReadBytes(SelectedProcess.Handle, SelectedModule.BaseAddress,
+            //     (uint) SelectedModule.ModuleMemorySize);
+            //RealignSectionHeaders(bytes);
+            //RunMemoryMirror();
 
-            //Kernel32.ResumeProcess(SelectedProcess.Id);
+            SelectedProcess.ResumeProcess();
         }
+        public record DumpableChunk(string? Name, IntPtr Size, List<ProcessUtilities.ProcessMemorySegment> Segments);
+        private void RunMemoryMirror() {
 
-        private List<IMAGE_SECTION_HEADER> _sectionHeaders;
+            var memorySegments = SelectedProcess.EnumerateMemorySegments();
+            var snapshot = SelectedProcess.CreateSnapshot();
+            var modules = SnapshotModuleHelper.EnumerateModules(snapshot);
 
-        private unsafe void RealignSectionHeaders(byte[] bytes) {
-            fixed (byte* pHeader = bytes) {
-                IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)pHeader;
-                IMAGE_NT_HEADERS64* ntHeaders = (IMAGE_NT_HEADERS64*)(pHeader + dosHeader->e_lfanew);
-                IMAGE_SECTION_HEADER* pSectionHeaders = (IMAGE_SECTION_HEADER*)((IntPtr)pHeader + dosHeader->e_lfanew + Marshal.SizeOf(typeof(IMAGE_NT_HEADERS64)));
+            var chunks = new Dictionary<IntPtr, DumpableChunk>();
+            foreach (var segment in memorySegments.OrderBy(m => m.Address)) {
+                // Mach anything that is between the start and the end of the module
+                var associatedModule = modules.FirstOrDefault(
+                    m =>
+                        (Int64) m.Address <= (Int64) segment.Address &&
+                        (Int64) m.Address + (Int64) m.Size >= (Int64) segment.Address
+                );
 
-                for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
-                    pSectionHeaders[i].PointerToRawData = pSectionHeaders[i].VirtualAddress;
-                    pSectionHeaders[i].SizeOfRawData = pSectionHeaders[i + 1].VirtualAddress - pSectionHeaders[i].VirtualAddress;
+                var chunkAddress = associatedModule?.Address ?? segment.Address;
+                var chunkSize = associatedModule?.Size ?? segment.Size;
+                if (chunks.ContainsKey(chunkAddress)) {
+                    chunks[chunkAddress].Segments.Add(segment);
+                } else {
+                    var chunk = new DumpableChunk(
+                        associatedModule?.Name,
+                        chunkSize,
+                        new List<ProcessUtilities.ProcessMemorySegment> {segment}
+                    );
+                    chunks[chunkAddress] = chunk;
                 }
+            }
+
+            var readHandle = SelectedProcess.GetReadHandle();
+            foreach (var chunk in chunks) {
+                var baseAddress = chunk.Key;
+                var segments = chunk.Value.Segments;
+
+                string path = $"./{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+                var fileStream = File.OpenWrite(path);
+
+                foreach (var segment in segments) {
+                    var segmentOffset = (UInt64) segment.Address - (UInt64) baseAddress;
+                    var takenSize = (UInt64) 0x0;
+
+                    while (takenSize < (UInt64) segment.Size) {
+                        // Chunk by max 1GB
+                        var currentChunkedSize =
+                            (UInt64) segment.Size > 0x3B9ACA00 ? 0x3B9ACA00 : (UInt64) segment.Size;
+                        var chunkedSegmentBuffer = ProcessUtilities.ReadMemoryToBuffer(
+                            readHandle,
+                            (IntPtr) ((UInt64) segment.Address + takenSize),
+                            (IntPtr) currentChunkedSize
+                        );
+
+                        fileStream.Seek(0, SeekOrigin.Begin);
+                        fileStream.Seek((long) (segmentOffset + takenSize), SeekOrigin.Begin);
+                        fileStream.Write(chunkedSegmentBuffer);
+
+                        takenSize += currentChunkedSize;
+                    }
+                }
+
+                Console.WriteLine($"Written dump to {path} ({chunk.Value.Size})");
             }
         }
 
@@ -239,8 +290,8 @@ namespace HeapingDumper {
             foreach (KeyValuePair<IntPtr, byte[]> pair in readMemory) {
                 File.WriteAllBytes($"{process.ProcessName}-{pair.Key:X}", pair.Value);
             }
-
         }
+
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

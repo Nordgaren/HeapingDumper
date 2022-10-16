@@ -21,4 +21,14 @@
       <PackageReference Include="Vanara.PInvoke.Kernel32" Version="3.4.6" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\MemoryMirror\MemoryMirror.Shared\MemoryMirror.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Scylla.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

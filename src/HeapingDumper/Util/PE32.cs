@@ -4,6 +4,10 @@ using System.Runtime.InteropServices;
 namespace HeapingDumper;
 
 public class PE32 {
+    public const uint FileAlignmentConstant = 0x200;
+    public const uint IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;
+    public const uint MAX_READ_SIZE = 100;
+
     [Flags]
     public enum DataSectionFlags : uint {
         /// <summary>
@@ -217,7 +221,7 @@ public class PE32 {
         MemoryWrite = 0x80000000
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack=4)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public unsafe struct IMAGE_DOS_HEADER {
         public fixed byte e_magic[2]; // Magic number
         public ushort e_cblp; // Bytes on last page of file
@@ -418,21 +422,18 @@ public class PE32 {
         [FieldOffset(28)] public uint PointerToLinenumbers;
         [FieldOffset(32)] public ushort NumberOfRelocations;
         [FieldOffset(34)] public ushort NumberOfLinenumbers;
-        [FieldOffset(36)] public DataSectionFlags Characteristics;
+        [FieldOffset(36)] public uint Characteristics;
 
-        public override string ToString() {
-            byte[] bytes = new byte[9];
-            int index = 0;
-            fixed (byte* ptr = Name)
-            {
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-
-            }
-    
-            return System.Text.Encoding.ASCII.GetString(bytes, 0, 8);
-        }
+        // public override string ToString() {
+        //     byte[] bytes = new byte[9];
+        //     int index = 0;
+        //     fixed (byte* ptr = Name) {
+        //         for (byte* counter = ptr; *counter != 0; counter++) {
+        //             bytes[index++] = *counter;
+        //         }
+        //     }
+        //
+        //     return System.Text.Encoding.ASCII.GetString(bytes, 0, 8);
+        // }
     }
 }
