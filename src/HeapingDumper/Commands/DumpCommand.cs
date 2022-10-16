@@ -60,10 +60,8 @@ public class DumpCommand : CommandBase {
                 ofd.FileName);
 
             RunMemoryMirror(selectedProcess, outputPath);
-        } catch (Exception e) {
-            _mainWindowViewModel.AppendLog($"Exception: {e.Message}");
-            File.WriteAllText("DumpException.txt", e.ToString());
-        } finally {
+        } 
+        finally {
             selectedProcess.ResumeProcess();
         }
     }

@@ -29,19 +29,26 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Label Content="Selected Process:"/>
-                <Label Content="{Binding SelectedProcess.ProcessName}"/>
+                <Label Content="{Binding SelectedProcess.ProcessName, FallbackValue=No Process }"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Label Content="Selected Module:"/>
-                <Label Content="{Binding SelectedModule.ModuleName}"/>
+                <Label Content="{Binding SelectedModule.ModuleName, FallbackValue=No Module}"/>
             </StackPanel>
             <TextBox Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" />
+            <Label Foreground="LightSlateGray" Content="Search..." IsEnabled="False" Margin="5,0,0,0" IsHitTestVisible="False"
+                   Visibility="{Binding ProcessFilter, Converter={StaticResource ResourceKey=StringToVisibilityConverter}}" Grid.Row="1" />
+            
             <ListBox ItemsSource="{Binding Processes}" DisplayMemberPath="ProcessName"
                      SelectedItem="{Binding SelectedProcess}" Grid.Row="2" />
+            
             <TextBox Text="{Binding ModuleFilter, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" />
+            <Label Foreground="LightSlateGray" Content="Search..." IsEnabled="False" Margin="5,0,0,0" IsHitTestVisible="False"
+                   Visibility="{Binding ProcessFilter, Converter={StaticResource ResourceKey=StringToVisibilityConverter}}" Grid.Row="1" />
+            
             <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
                      SelectedItem="{Binding SelectedModule}" Grid.Row="2" Grid.Column="1"/>
-            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
+            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" TextChanged="TextChanged"/>
         </Grid>
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
