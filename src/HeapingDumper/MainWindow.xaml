@@ -21,6 +21,7 @@
                 <RowDefinition Height="50" />
                 <RowDefinition Height="25" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="30" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
@@ -48,7 +49,8 @@
             
             <ListBox ItemsSource="{Binding ModuleCollectionView}" DisplayMemberPath="ModuleName"
                      SelectedItem="{Binding SelectedModule}" Grid.Row="2" Grid.Column="1"/>
-            <TextBox Text="{Binding Log}" Grid.Row="3" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" TextChanged="TextChanged"/>
+            <Label Content="Log" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Row="3" Grid.ColumnSpan="2" FontSize="15" FontWeight="Bold" />
+            <TextBox Text="{Binding Log}" Grid.Row="4" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" TextChanged="TextChanged"/>
         </Grid>
 
         <StackPanel Grid.Column="1" Width="50" Margin="10,50,10,0" VerticalAlignment="Top">
