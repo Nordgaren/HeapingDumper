@@ -42,7 +42,6 @@ public class DumpCommand : AsyncCommandBase {
         return Task.Run(() => {
             Task returnTask = null;
             int logLength = _mainWindowViewModel.Log.Length;
-            _mainWindowViewModel.AppendLog("Begin Dumping...");
             
             Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
             ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
@@ -68,7 +67,7 @@ public class DumpCommand : AsyncCommandBase {
                                 throw new InvalidOperationException("Dump output path invalid");
             Directory.CreateDirectory(outputPath);
             string outputFile = Path.GetFileName(ofd.FileName);
-
+            _mainWindowViewModel.AppendLog("Begin Dumping...");
             selectedProcess.SuspendProcess();
 
             try {
