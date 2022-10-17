@@ -52,9 +52,8 @@ public class MainWindowViewModel : INotifyPropertyChanged {
             SelectedModule =
                 Modules.FirstOrDefault(x => x.ModuleName.Contains(SelectedProcess.ProcessName));
             ModuleCollectionView.Refresh();
-        } catch (Exception e) {
-            AppendLog($"Exception: {e.Message}");
-            File.AppendAllText("DumpException.txt", e.ToString());
+        } catch (Exception ex) {
+            LogException(ex);
         } finally {
             onPropertyChanged(nameof(ModuleCollectionView));
             ModuleCollectionView.Filter += filterModules;
@@ -185,9 +184,10 @@ public class MainWindowViewModel : INotifyPropertyChanged {
         }
     }
 
-    private void LogException(Exception e) {
+    public void LogException(Exception e) {
         AppendLog($"Exception: {e.Message}");
-        File.AppendAllText("DumpException.txt", e.ToString());
+        File.AppendAllText("DumpException.txt", $"Exception: {DateTime.Now:g}\n" +
+                                                $"{e}");
     }
 
 

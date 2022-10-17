@@ -61,7 +61,9 @@ public class DumpCommand : CommandBase {
                 $"{outputPath}/{outputFile}");
 
             RunMemoryMirror(selectedProcess, outputPath);
-        } 
+        } catch (Exception ex) {
+            _mainWindowViewModel.LogException(ex);
+        }
         finally {
             selectedProcess.ResumeProcess();
         }
