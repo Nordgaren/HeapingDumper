@@ -89,7 +89,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     public string Log { get => _log; set => setField(ref _log, value); }
 
     public void AppendLog(string message) {
-        Log += $"{message}\n";
+        Application.Current.Dispatcher.Invoke(() => { Log += $"{message}\n"; });
     }
 
     void waitForProcess() {
@@ -105,8 +105,8 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     }
 
     void startWatch_EventArrived(object sender, EventArrivedEventArgs e) {
-        AppendLog(string.Format("Process started: {0}"
-            , e.NewEvent.Properties["ProcessName"].Value));
+        // AppendLog(string.Format("Process started: {0}"
+        //     , e.NewEvent.Properties["ProcessName"].Value));
 
         Process process = Process.GetProcessById((int) (uint) e.NewEvent.Properties["ProcessID"].Value);
         if (Processes.Any(x => x.Id == process.Id)) return;
@@ -114,8 +114,8 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     }
 
     void stopWatch_EventArrived(object sender, EventArrivedEventArgs e) {
-        AppendLog(string.Format("Process ended: {0}"
-            , e.NewEvent.Properties["ProcessName"].Value));
+        // AppendLog(string.Format("Process ended: {0}"
+        //     , e.NewEvent.Properties["ProcessName"].Value));
 
         Process? process = Processes.FirstOrDefault(x => x.Id == (int) (uint) e.NewEvent.Properties["ProcessID"].Value);
         if (process != null) {

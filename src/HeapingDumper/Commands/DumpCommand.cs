@@ -5,13 +5,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using MemoryMirror.Shared;
 using Microsoft.Win32;
 
 namespace HeapingDumper.Commands;
 
-public class DumpCommand : CommandBase {
+public class DumpCommand : AsyncCommandBase {
     private readonly MainWindowViewModel _mainWindowViewModel;
 
     public DumpCommand(MainWindowViewModel mainWindowViewModel) {
@@ -28,45 +30,66 @@ public class DumpCommand : CommandBase {
     static extern bool ScyllaDumpProcessW(int pid, [MarshalAs(UnmanagedType.LPWStr)] string fileToDump,
         IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)] string fileResult);
 
-    public override void Execute(object? parameter) {
-        Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
-        ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
-
-        string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ??
-                          throw new InvalidOperationException("Module file name invalid");
-        string filePath = Path.GetDirectoryName(selectedModule.FileName) ??
-                          throw new InvalidOperationException("Module file path invalid");
-        OpenFileDialog ofd = new() {
-            Title = "Select Dump Output Path",
-            InitialDirectory = filePath,
-            FileName = $"{fileName}_dump.exe",
-            CheckFileExists = false,
-            CheckPathExists = false
-        };
-
-        if (!ofd.ShowDialog().Value) {
-            _mainWindowViewModel.AppendLog("No file selected...");
-            return;
-        }
-
-        string outputPath = Path.GetDirectoryName(ofd.FileName) ??
-                            throw new InvalidOperationException("Dump output path invalid");
-        Directory.CreateDirectory(outputPath);
-        string outputFile = Path.GetFileName(ofd.FileName);
-        
-        selectedProcess.SuspendProcess();
-
+    public async void Execute(object? parameter) {
         try {
-            ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress, selectedModule.EntryPointAddress,
-                $"{outputPath}/{outputFile}");
-
-            RunMemoryMirror(selectedProcess, outputPath);
+            await ExecuteAsync(parameter);
         } catch (Exception ex) {
             _mainWindowViewModel.LogException(ex);
         }
-        finally {
-            selectedProcess.ResumeProcess();
-        }
+    }
+
+    public override Task ExecuteAsync(object? parameter) {
+        return Task.Run(() => {
+            Task returnTask = null;
+            int logLength = _mainWindowViewModel.Log.Length;
+            _mainWindowViewModel.AppendLog("Begin Dumping...");
+            
+            Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
+            ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
+
+            string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ??
+                              throw new InvalidOperationException("Module file name invalid");
+            string filePath = Path.GetDirectoryName(selectedModule.FileName) ??
+                              throw new InvalidOperationException("Module file path invalid");
+            OpenFileDialog ofd = new() {
+                Title = "Select Dump Output Path",
+                InitialDirectory = filePath,
+                FileName = $"{fileName}_dump.exe",
+                CheckFileExists = false,
+                CheckPathExists = false
+            };
+
+            if (!ofd.ShowDialog().Value) {
+                _mainWindowViewModel.AppendLog("No file selected...");
+                return Task.CompletedTask;
+            }
+
+            string outputPath = Path.GetDirectoryName(ofd.FileName) ??
+                                throw new InvalidOperationException("Dump output path invalid");
+            Directory.CreateDirectory(outputPath);
+            string outputFile = Path.GetFileName(ofd.FileName);
+
+            selectedProcess.SuspendProcess();
+
+            try {
+                ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress,
+                    selectedModule.EntryPointAddress,
+                    $"{outputPath}\\{outputFile}");
+
+                RunMemoryMirror(selectedProcess, outputPath);
+            } catch (Exception ex) {
+                _mainWindowViewModel.LogException(ex);
+                returnTask = Task.FromException(ex);
+            } finally {
+                selectedProcess.ResumeProcess();
+            }
+
+            _mainWindowViewModel.AppendLog("Finished Dumping...");
+            File.WriteAllText($"{Path.GetFileNameWithoutExtension(outputFile)} {DateTime.Now:M-d-y HH-mm-ss} DumpLog.txt", _mainWindowViewModel.Log.Substring(logLength));
+            if (returnTask == null) returnTask = Task.CompletedTask;
+
+            return returnTask;
+        });
     }
 
     public record DumpableChunk(string? Name, IntPtr Size, List<ProcessUtilities.ProcessMemorySegment> Segments);
@@ -104,7 +127,7 @@ public class DumpCommand : CommandBase {
             var baseAddress = chunk.Key;
             var segments = chunk.Value.Segments;
 
-            string path = $"{outputPath}/{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+            string path = $"{outputPath}\\{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
             var fileStream = File.OpenWrite(path);
 
             foreach (var segment in segments) {
