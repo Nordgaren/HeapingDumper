@@ -92,7 +92,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
         Application.Current.Dispatcher.Invoke(() => { Log += $"{message}\n"; });
     }
 
-    void waitForProcess() {
+    private void waitForProcess() {
         ManagementEventWatcher startWatch = new ManagementEventWatcher(
             new WqlEventQuery("SELECT * FROM Win32_ProcessStartTrace"));
         startWatch.EventArrived += startWatch_EventArrived;
@@ -105,22 +105,19 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     }
 
     void startWatch_EventArrived(object sender, EventArrivedEventArgs e) {
-        // AppendLog(string.Format("Process started: {0}"
-        //     , e.NewEvent.Properties["ProcessName"].Value));
-
         Process process = Process.GetProcessById((int) (uint) e.NewEvent.Properties["ProcessID"].Value);
         if (Processes.Any(x => x.Id == process.Id)) return;
         Application.Current.Dispatcher.Invoke(() => { Processes.Add(process); });
+        AppendLog(string.Format("Process started: {0}"
+            , e.NewEvent.Properties["ProcessName"].Value));
     }
 
     void stopWatch_EventArrived(object sender, EventArrivedEventArgs e) {
-        // AppendLog(string.Format("Process ended: {0}"
-        //     , e.NewEvent.Properties["ProcessName"].Value));
-
         Process? process = Processes.FirstOrDefault(x => x.Id == (int) (uint) e.NewEvent.Properties["ProcessID"].Value);
-        if (process != null) {
-            Application.Current.Dispatcher.Invoke(() => { Processes.Remove(process); });
-        }
+        if (process == null) return;
+        Application.Current.Dispatcher.Invoke(() => { Processes.Remove(process); });
+        AppendLog(string.Format("Process ended: {0}"
+            , e.NewEvent.Properties["ProcessName"].Value));
     }
 
     private bool filterProcesses(object obj) {

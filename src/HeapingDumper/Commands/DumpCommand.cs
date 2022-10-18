@@ -39,10 +39,9 @@ public class DumpCommand : AsyncCommandBase {
     }
 
     public override Task ExecuteAsync(object? parameter) {
-        return Task.Run(() => {
-            Task returnTask = null;
+        return Task.Run(async () => {
             int logLength = _mainWindowViewModel.Log.Length;
-            
+
             Process? selectedProcess = _mainWindowViewModel.SelectedProcess;
             ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
 
@@ -60,7 +59,7 @@ public class DumpCommand : AsyncCommandBase {
 
             if (!ofd.ShowDialog().Value) {
                 _mainWindowViewModel.AppendLog("No file selected...");
-                return Task.CompletedTask;
+                return;
             }
 
             string outputPath = Path.GetDirectoryName(ofd.FileName) ??
@@ -68,26 +67,30 @@ public class DumpCommand : AsyncCommandBase {
             Directory.CreateDirectory(outputPath);
             string outputFile = Path.GetFileName(ofd.FileName);
             _mainWindowViewModel.AppendLog("Begin Dumping...");
-            selectedProcess.SuspendProcess();
 
             try {
-                ScyllaDumpProcessW(selectedProcess.Id, null, selectedModule.BaseAddress,
-                    selectedModule.EntryPointAddress,
-                    $"{outputPath}\\{outputFile}");
+                using (SuspendedProcess p = new (selectedProcess)) {
+                    p.Suspend();
+                    //Calls Scylla dll to dump the exe from memory
+                    ScyllaDumpProcessW(
+                        selectedProcess.Id,
+                        null,
+                        selectedModule.BaseAddress,
+                        selectedModule.EntryPointAddress,
+                        $"{outputPath}\\{outputFile}"
+                    );
 
-                RunMemoryMirror(selectedProcess, outputPath);
+                    //Calls MemoryMirror library to dump heap memory segments
+                    RunMemoryMirror(selectedProcess, outputPath);
+                }
             } catch (Exception ex) {
                 _mainWindowViewModel.LogException(ex);
-                returnTask = Task.FromException(ex);
-            } finally {
-                selectedProcess.ResumeProcess();
             }
 
             _mainWindowViewModel.AppendLog("Finished Dumping...");
-            File.WriteAllText($"{Path.GetFileNameWithoutExtension(outputFile)} {DateTime.Now:M-d-y HH-mm-ss} DumpLog.txt", _mainWindowViewModel.Log.Substring(logLength));
-            if (returnTask == null) returnTask = Task.CompletedTask;
-
-            return returnTask;
+            File.WriteAllText(
+                $"{Path.GetFileNameWithoutExtension(outputFile)} {DateTime.Now:M-d-y HH-mm-ss} DumpLog.txt",
+                _mainWindowViewModel.Log.Substring(logLength));
         });
     }
 
@@ -151,7 +154,7 @@ public class DumpCommand : AsyncCommandBase {
                 }
             }
 
-            _mainWindowViewModel.AppendLog($"Written dump to {path} ({chunk.Value.Size})");
+            _mainWindowViewModel.AppendLog($"Written dump to {path} (0x{chunk.Value.Size:X2})");
         }
     }
 
