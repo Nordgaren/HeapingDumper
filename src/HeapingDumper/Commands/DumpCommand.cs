@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using MemoryMirror.Shared;
 using Microsoft.Win32;
+using System.Globalization;
 
 namespace HeapingDumper.Commands;
 
@@ -67,10 +68,11 @@ public class DumpCommand : AsyncCommandBase {
             Directory.CreateDirectory(outputPath);
             string outputFile = Path.GetFileName(ofd.FileName);
             _mainWindowViewModel.AppendLog("Begin Dumping...");
-
+            string[] files = Array.Empty<string>();
             try {
                 using (SuspendedProcess p = new (selectedProcess)) {
                     p.Suspend();
+                    
                     //Calls Scylla dll to dump the exe from memory
                     ScyllaDumpProcessW(
                         selectedProcess.Id,
@@ -81,22 +83,34 @@ public class DumpCommand : AsyncCommandBase {
                     );
 
                     //Calls MemoryMirror library to dump heap memory segments
-                    RunMemoryMirror(selectedProcess, outputPath);
+                    files = RunMemoryMirror(selectedProcess, outputPath);
                 }
+                
             } catch (Exception ex) {
                 _mainWindowViewModel.LogException(ex);
             }
-
+            
+            _mainWindowViewModel.AppendLog("Renaming Files...");
+            //RenameDumpFiles(outputPath, files);
             _mainWindowViewModel.AppendLog("Finished Dumping...");
+            
             File.WriteAllText(
                 $"{Path.GetFileNameWithoutExtension(outputFile)} {DateTime.Now:M-d-y HH-mm-ss} DumpLog.txt",
                 _mainWindowViewModel.Log.Substring(logLength));
         });
     }
+    private void RenameDumpFiles(string outputPath, string[] files) {
+        foreach (string path in files) {
+            string[] parts = Path.GetFileName(path).Split("-");
+            long start = long.Parse(parts[0], NumberStyles.HexNumber);
+            FileInfo f = new FileInfo(path);
+            File.Move(path, $"{outputPath}\\{parts[0]}-{start + f.Length:X2}-{parts[1]}");
+        }
+    }
 
     public record DumpableChunk(string? Name, IntPtr Size, List<ProcessUtilities.ProcessMemorySegment> Segments);
 
-    private void RunMemoryMirror(Process selectedProcess, string outputPath) {
+    private string[] RunMemoryMirror(Process selectedProcess, string outputPath) {
         var memorySegments = selectedProcess.EnumerateMemorySegments();
         var snapshot = selectedProcess.CreateSnapshot();
         var modules = SnapshotModuleHelper.EnumerateModules(snapshot);
@@ -125,11 +139,12 @@ public class DumpCommand : AsyncCommandBase {
         }
 
         var readHandle = selectedProcess.GetReadHandle();
+        List<string> paths = new List<string>();
         foreach (var chunk in chunks) {
-            var baseAddress = chunk.Key;
+            IntPtr baseAddress = chunk.Key;
             var segments = chunk.Value.Segments;
-
-            string path = $"{outputPath}\\{chunk.Key:X}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+            string path = $"{outputPath}\\{chunk.Key:X}-{chunk.Key.ToInt64() + chunk.Value.Size.ToInt64():X2}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+            paths.Add(path);
             var fileStream = File.OpenWrite(path);
 
             foreach (var segment in segments) {
@@ -153,9 +168,11 @@ public class DumpCommand : AsyncCommandBase {
                     takenSize += currentChunkedSize;
                 }
             }
-
+            
             _mainWindowViewModel.AppendLog($"Written dump to {path} (0x{chunk.Value.Size:X2})");
         }
+
+        return paths.ToArray();
     }
 
 

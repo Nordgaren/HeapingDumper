@@ -37,6 +37,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
         set {
             if (setField(ref _selectedProcess, value)) {
                 setSelectedModule();
+                ProcessCollectionView.Refresh();
             }
         }
     }
