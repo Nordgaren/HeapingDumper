@@ -215,7 +215,7 @@ public static class Kernel32 {
         foreach (ProcessThread thread in process.Threads) {
             var pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
             if (pOpenThread == IntPtr.Zero) {
-                throw new InvalidOperationException($"Could not pause process. pOpenThread = IntPtr.Zero");
+                throw new ProcessOperationException($"Could not pause process. pOpenThread = IntPtr.Zero");
             }
             SuspendThread(pOpenThread);
         }
@@ -225,7 +225,7 @@ public static class Kernel32 {
         foreach (ProcessThread thread in process.Threads) {
             var pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)thread.Id);
             if (pOpenThread == IntPtr.Zero) {
-                throw new InvalidOperationException($"Could not resume process. pOpenThread = IntPtr.Zero");
+                throw new ProcessOperationException($"Could not resume process. pOpenThread = IntPtr.Zero");
             }
             ResumeThread(pOpenThread);
         }
