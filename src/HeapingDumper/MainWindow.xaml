@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:HeapingDumper"
         mc:Ignorable="d"
-        Title="Heaping Dumper v1.0.1" Height="450" Width="800" DataContextChanged="OnDataContextChanged"
+        Title="Heaping Dumper v1.0.2" Height="450" Width="800" DataContextChanged="OnDataContextChanged"
         d:DataContext="{d:DesignInstance local:MainWindowViewModel, IsDesignTimeCreatable=True}">
     <Window.DataContext>
         <local:MainWindowViewModel x:Name="MainWindowViewModel"/>
