@@ -28,13 +28,14 @@ public class DumpCommand : AsyncCommandBase {
     }
 
     [DllImport("Scylla.dll")]
-    static extern bool ScyllaDumpProcessW(int pid, [MarshalAs(UnmanagedType.LPWStr)] string fileToDump,
-        IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)] string fileResult);
+    static extern bool ScyllaDumpProcessW(int pid, [MarshalAs(UnmanagedType.LPWStr)]string fileToDump,
+        IntPtr imagebase, IntPtr entrypoint, [MarshalAs(UnmanagedType.LPWStr)]string fileResult);
 
     public async void Execute(object? parameter) {
         try {
             await ExecuteAsync(parameter);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             _mainWindowViewModel.LogException(ex);
         }
     }
@@ -47,9 +48,9 @@ public class DumpCommand : AsyncCommandBase {
             ProcessModule? selectedModule = _mainWindowViewModel.SelectedModule;
 
             string fileName = Path.GetFileNameWithoutExtension(selectedModule.FileName) ??
-                              throw new InvalidOperationException("Module file name invalid");
+                throw new InvalidOperationException("Module file name invalid");
             string filePath = Path.GetDirectoryName(selectedModule.FileName) ??
-                              throw new InvalidOperationException("Module file path invalid");
+                throw new InvalidOperationException("Module file path invalid");
             OpenFileDialog ofd = new() {
                 Title = "Select Dump Output Path",
                 InitialDirectory = filePath,
@@ -64,15 +65,15 @@ public class DumpCommand : AsyncCommandBase {
             }
 
             string outputPath = Path.GetDirectoryName(ofd.FileName) ??
-                                throw new InvalidOperationException("Dump output path invalid");
+                throw new InvalidOperationException("Dump output path invalid");
             Directory.CreateDirectory(outputPath);
             string outputFile = Path.GetFileName(ofd.FileName);
             _mainWindowViewModel.AppendLog("Begin Dumping...");
             string[] files = Array.Empty<string>();
             try {
-                using (SuspendedProcess p = new (selectedProcess)) {
+                using (SuspendedProcess p = new(selectedProcess)) {
                     p.Suspend();
-                    
+
                     //Calls Scylla dll to dump the exe from memory
                     ScyllaDumpProcessW(
                         selectedProcess.Id,
@@ -85,15 +86,16 @@ public class DumpCommand : AsyncCommandBase {
                     //Calls MemoryMirror library to dump heap memory segments
                     files = RunMemoryMirror(selectedProcess, outputPath);
                 }
-                
-            } catch (Exception ex) {
+
+            }
+            catch (Exception ex) {
                 _mainWindowViewModel.LogException(ex);
             }
-            
+
             _mainWindowViewModel.AppendLog("Renaming Files...");
             //RenameDumpFiles(outputPath, files);
             _mainWindowViewModel.AppendLog("Finished Dumping...");
-            
+
             File.WriteAllText(
                 $"{Path.GetFileNameWithoutExtension(outputFile)} {DateTime.Now:M-d-y HH-mm-ss} DumpLog.txt",
                 _mainWindowViewModel.Log.Substring(logLength));
@@ -120,19 +122,20 @@ public class DumpCommand : AsyncCommandBase {
             // Mach anything that is between the start and the end of the module
             var associatedModule = modules.FirstOrDefault(
                 m =>
-                    (Int64) m.Address <= (Int64) segment.Address &&
-                    (Int64) m.Address + (Int64) m.Size >= (Int64) segment.Address
+                    (Int64)m.Address <= (Int64)segment.Address &&
+                    (Int64)m.Address + (Int64)m.Size >= (Int64)segment.Address
             );
 
             var chunkAddress = associatedModule?.Address ?? segment.Address;
             var chunkSize = associatedModule?.Size ?? segment.Size;
             if (chunks.ContainsKey(chunkAddress)) {
                 chunks[chunkAddress].Segments.Add(segment);
-            } else {
+            }
+            else {
                 var chunk = new DumpableChunk(
                     associatedModule?.Name,
                     chunkSize,
-                    new List<ProcessUtilities.ProcessMemorySegment> {segment}
+                    new List<ProcessUtilities.ProcessMemorySegment> { segment }
                 );
                 chunks[chunkAddress] = chunk;
             }
@@ -144,31 +147,30 @@ public class DumpCommand : AsyncCommandBase {
             IntPtr baseAddress = chunk.Key;
             var segments = chunk.Value.Segments;
             string path = $"{outputPath}\\{chunk.Key:X}-{chunk.Key.ToInt64() + chunk.Value.Size.ToInt64():X2}-{chunk.Value.Name ?? "UNKNOWN"}.dmp";
+            
             paths.Add(path);
             var fileStream = File.OpenWrite(path);
-
             foreach (var segment in segments) {
-                var segmentOffset = (UInt64) segment.Address - (UInt64) baseAddress;
-                var takenSize = (UInt64) 0x0;
+                var segmentOffset = (UInt64)segment.Address - (UInt64)baseAddress;
+                var takenSize = (UInt64)0x0;
 
-                while (takenSize < (UInt64) segment.Size) {
+                while (takenSize < (UInt64)segment.Size) {
                     // Chunk by max 1GB
-                    var currentChunkedSize =
-                        (UInt64) segment.Size > 0x3B9ACA00 ? 0x3B9ACA00 : (UInt64) segment.Size;
+                    var bytesLeft = (UInt64)segment.Size - takenSize;
+                    var currentChunkedSize = bytesLeft > 0x3B9ACA00 ? 0x3B9ACA00 : bytesLeft;
                     var chunkedSegmentBuffer = ProcessUtilities.ReadMemoryToBuffer(
                         readHandle,
-                        (IntPtr) ((UInt64) segment.Address + takenSize),
-                        (IntPtr) currentChunkedSize
+                        (IntPtr)((UInt64)segment.Address + takenSize),
+                        (IntPtr)currentChunkedSize
                     );
 
                     fileStream.Seek(0, SeekOrigin.Begin);
-                    fileStream.Seek((long) (segmentOffset + takenSize), SeekOrigin.Begin);
+                    fileStream.Seek((long)(segmentOffset + takenSize), SeekOrigin.Begin);
                     fileStream.Write(chunkedSegmentBuffer);
 
                     takenSize += currentChunkedSize;
                 }
             }
-            
             _mainWindowViewModel.AppendLog($"Written dump to {path} (0x{chunk.Value.Size:X2})");
         }
 
