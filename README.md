@@ -3,7 +3,7 @@ Takes a Dump of the Heap variety.
 
 Run as admin
 
-Uses [Scylla](https://github.com/scylladb/scylladb)
+Uses [Scylla](https://github.com/x64dbg/Scylla) from x64dbg
 
 # Release Notes
 ## 1.0.2
